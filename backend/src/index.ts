@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import authRoutes from './routes/auth.routes'
 import productosRoutes from './routes/productos.routes'
 import inventarioRoutes from './routes/inventario.routes'
+import movimientosRoutes from './routes/movimientos.routes'
 
 dotenv.config()
 
@@ -20,6 +21,7 @@ app.get('/ping', (req, res) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/productos', productosRoutes)
 app.use('/api/inventario', inventarioRoutes)
+app.use('/api/movimientos', movimientosRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`)
