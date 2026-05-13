@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.routes'
 import productosRoutes from './routes/productos.routes'
 import inventarioRoutes from './routes/inventario.routes'
 import movimientosRoutes from './routes/movimientos.routes'
+import ventasRoutes from './routes/ventas.routes'
 
 dotenv.config()
 
@@ -22,6 +23,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/productos', productosRoutes)
 app.use('/api/inventario', inventarioRoutes)
 app.use('/api/movimientos', movimientosRoutes)
+app.use('/api/ventas', ventasRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`)
