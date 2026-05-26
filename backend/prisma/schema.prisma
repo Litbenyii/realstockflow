@@ -7,45 +7,88 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model MovimientoStock {
-  id               Int            @id @default(autoincrement())
-  tipo             TipoMovimiento
-  cantidad         Int
-  descripcion      String?
-  creadoEn         DateTime       @default(now())
-  varianteId       Int
-  tiendaId         Int
-  usuarioId        Int
-  origenUbicacion  Ubicacion?
-  destinoUbicacion Ubicacion?
-  Tienda           Tienda         @relation(fields: [tiendaId], references: [id])
-  Usuario          Usuario        @relation(fields: [usuarioId], references: [id])
-  Variante         Variante       @relation(fields: [varianteId], references: [id])
+model Tienda {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  direccion String?
+  ciudad    String?
+  activa    Boolean  @default(true)
+  creadoEn  DateTime @default(now())
+
+  Usuario         Usuario[]
+  Producto        Producto[]
+  Stock           Stock[]
+  MovimientoStock MovimientoStock[]
+  Reporte         Reporte[]
+}
+
+enum Rol {
+  JEFATURA
+  BODEGUERO
+  CAJERO
+}
+
+model Usuario {
+  id       Int      @id @default(autoincrement())
+  nombre   String
+  rut      String   @unique
+  email    String   @unique
+  password String
+  rol      Rol
+  activo   Boolean  @default(true)
+  creadoEn DateTime @default(now())
+
+  tiendaId        Int
+  Tienda          Tienda            @relation(fields: [tiendaId], references: [id])
+  MovimientoStock MovimientoStock[]
+  Reporte         Reporte[]
+}
+
+enum Categoria {
+  NINO
+  NINA
+  DENIM_HOMBRE
+  DENIM_MUJER
+  LENCERIA
+  ROPA_INTERIOR
+  JUVENIL_HOMBRE
+  JUVENIL_MUJER
+  SENORA
+  MUJER
+  HOMBRE_CASUAL
+  HOME
 }
 
 model Producto {
-  id          Int        @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   nombre      String
-  codigo      String     @unique
+  codigo      String    @unique
   categoria   Categoria
   descripcion String?
-  activo      Boolean    @default(true)
-  creadoEn    DateTime   @default(now())
-  tiendaId    Int
-  Tienda      Tienda     @relation(fields: [tiendaId], references: [id])
-  Variante    Variante[]
+  activo      Boolean   @default(true)
+  creadoEn    DateTime  @default(now())
+
+  tiendaId Int
+  Tienda   Tienda     @relation(fields: [tiendaId], references: [id])
+  Variante Variante[]
 }
 
-model Reporte {
-  id        Int         @id @default(autoincrement())
-  tipo      TipoReporte
-  nombre    String
-  url       String?
-  creadoEn  DateTime    @default(now())
-  tiendaId  Int
-  usuarioId Int
-  Tienda    Tienda      @relation(fields: [tiendaId], references: [id])
-  Usuario   Usuario     @relation(fields: [usuarioId], references: [id])
+model Variante {
+  id       Int      @id @default(autoincrement())
+  talla    String
+  color    String?
+  sku      String   @unique
+  creadoEn DateTime @default(now())
+
+  productoId      Int
+  Producto        Producto          @relation(fields: [productoId], references: [id])
+  Stock           Stock[]
+  MovimientoStock MovimientoStock[]
+}
+
+enum Ubicacion {
+  BODEGA
+  TIENDA
 }
 
 model Stock {
@@ -53,70 +96,13 @@ model Stock {
   cantidad      Int       @default(0)
   ubicacion     Ubicacion
   actualizadoEn DateTime
-  varianteId    Int
-  tiendaId      Int
-  Tienda        Tienda    @relation(fields: [tiendaId], references: [id])
-  Variante      Variante  @relation(fields: [varianteId], references: [id])
+
+  varianteId Int
+  tiendaId   Int
+  Variante   Variante @relation(fields: [varianteId], references: [id])
+  Tienda     Tienda   @relation(fields: [tiendaId], references: [id])
 
   @@unique([varianteId, tiendaId, ubicacion])
-}
-
-model Tienda {
-  id              Int               @id @default(autoincrement())
-  nombre          String
-  direccion       String?
-  ciudad          String?
-  activa          Boolean           @default(true)
-  creadoEn        DateTime          @default(now())
-  MovimientoStock MovimientoStock[]
-  Producto        Producto[]
-  Reporte         Reporte[]
-  Stock           Stock[]
-  Usuario         Usuario[]
-}
-
-model Usuario {
-  id              Int               @id @default(autoincrement())
-  nombre          String
-  email           String            @unique
-  password        String
-  rol             Rol
-  activo          Boolean           @default(true)
-  creadoEn        DateTime          @default(now())
-  tiendaId        Int
-  MovimientoStock MovimientoStock[]
-  Reporte         Reporte[]
-  Tienda          Tienda            @relation(fields: [tiendaId], references: [id])
-}
-
-model Variante {
-  id              Int               @id @default(autoincrement())
-  talla           String
-  color           String?
-  sku             String            @unique
-  creadoEn        DateTime          @default(now())
-  productoId      Int
-  MovimientoStock MovimientoStock[]
-  Stock           Stock[]
-  Producto        Producto          @relation(fields: [productoId], references: [id])
-}
-
-enum Categoria {
-  HOMBRE
-  MUJER
-  NINO
-  NINA
-  JUVENIL
-  DENIM
-  LENCERIA
-  ACCESORIOS
-  OTRO
-}
-
-enum Rol {
-  JEFATURA
-  BODEGUERO
-  CAJERO
 }
 
 enum TipoMovimiento {
@@ -127,6 +113,23 @@ enum TipoMovimiento {
   AJUSTE
 }
 
+model MovimientoStock {
+  id               Int            @id @default(autoincrement())
+  tipo             TipoMovimiento
+  cantidad         Int
+  descripcion      String?
+  creadoEn         DateTime       @default(now())
+  origenUbicacion  Ubicacion?
+  destinoUbicacion Ubicacion?
+
+  varianteId Int
+  tiendaId   Int
+  usuarioId  Int
+  Variante   Variante @relation(fields: [varianteId], references: [id])
+  Tienda     Tienda   @relation(fields: [tiendaId], references: [id])
+  Usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
 enum TipoReporte {
   INVENTARIO
   MOVIMIENTOS
@@ -134,7 +137,15 @@ enum TipoReporte {
   PEDIDO
 }
 
-enum Ubicacion {
-  BODEGA
-  TIENDA
+model Reporte {
+  id       Int         @id @default(autoincrement())
+  tipo     TipoReporte
+  nombre   String
+  url      String?
+  creadoEn DateTime    @default(now())
+
+  tiendaId  Int
+  usuarioId Int
+  Tienda    Tienda  @relation(fields: [tiendaId], references: [id])
+  Usuario   Usuario @relation(fields: [usuarioId], references: [id])
 }

@@ -5,30 +5,29 @@ import prisma from '../lib/prisma'
 
 export const registro = async (req: Request, res: Response) => {
   try {
-    const { nombre, email, password, rol, tiendaId } = req.body
+    const { nombre, rut, email, password, rol, tiendaId } = req.body
 
-    // Verificar si el email ya existe
-    const usuarioExistente = await prisma.usuario.findUnique({
-      where: { email }
-    })
+    if (!nombre || !rut || !email || !password || !rol || !tiendaId) {
+      res.status(400).json({ error: 'Todos los campos son requeridos' })
+      return
+    }
 
-    if (usuarioExistente) {
+    const rutExistente = await prisma.usuario.findUnique({ where: { rut } })
+    if (rutExistente) {
+      res.status(400).json({ error: 'El RUT ya está registrado' })
+      return
+    }
+
+    const emailExistente = await prisma.usuario.findUnique({ where: { email } })
+    if (emailExistente) {
       res.status(400).json({ error: 'El email ya está registrado' })
       return
     }
 
-    // Encriptar contraseña
     const passwordHash = await bcrypt.hash(password, 10)
 
-    // Crear usuario
     const usuario = await prisma.usuario.create({
-      data: {
-        nombre,
-        email,
-        password: passwordHash,
-        rol,
-        tiendaId
-      }
+      data: { nombre, rut, email, password: passwordHash, rol, tiendaId }
     })
 
     res.status(201).json({
@@ -36,6 +35,7 @@ export const registro = async (req: Request, res: Response) => {
       usuario: {
         id: usuario.id,
         nombre: usuario.nombre,
+        rut: usuario.rut,
         email: usuario.email,
         rol: usuario.rol
       }
@@ -48,12 +48,14 @@ export const registro = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body
+    const { rut, password } = req.body
 
-    // Buscar usuario
-    const usuario = await prisma.usuario.findUnique({
-      where: { email }
-    })
+    if (!rut || !password) {
+      res.status(400).json({ error: 'RUT y contraseña son requeridos' })
+      return
+    }
+
+    const usuario = await prisma.usuario.findUnique({ where: { rut } })
 
     if (!usuario) {
       res.status(401).json({ error: 'Credenciales incorrectas' })
@@ -65,22 +67,14 @@ export const login = async (req: Request, res: Response) => {
       return
     }
 
-    // Verificar contraseña
     const passwordValida = await bcrypt.compare(password, usuario.password)
-
     if (!passwordValida) {
       res.status(401).json({ error: 'Credenciales incorrectas' })
       return
     }
 
-    // Generar token
     const token = jwt.sign(
-      {
-        id: usuario.id,
-        email: usuario.email,
-        rol: usuario.rol,
-        tiendaId: usuario.tiendaId
-      },
+      { id: usuario.id, rut: usuario.rut, email: usuario.email, rol: usuario.rol, tiendaId: usuario.tiendaId },
       process.env.JWT_SECRET as string,
       { expiresIn: '8h' }
     )
@@ -91,6 +85,7 @@ export const login = async (req: Request, res: Response) => {
       usuario: {
         id: usuario.id,
         nombre: usuario.nombre,
+        rut: usuario.rut,
         email: usuario.email,
         rol: usuario.rol,
         tiendaId: usuario.tiendaId
@@ -109,13 +104,13 @@ export const perfil = async (req: any, res: Response) => {
       select: {
         id: true,
         nombre: true,
+        rut: true,
         email: true,
         rol: true,
         tiendaId: true,
         creadoEn: true
       }
     })
-
     res.json({ usuario })
   } catch (error) {
     console.error(error)
