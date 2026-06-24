@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import api from '@/lib/api'
+import { exportarStock, exportarMovimientos } from '@/lib/exportar'
 
 const TABS = ['Stock', 'Registrar ingreso', 'Traslados', 'Historial']
 const itemVacio = () => ({ varianteId: '', cantidad: '', numeroCaja: '1' })
+
+const CATEGORIAS_LABEL: any = {
+  NINO: 'Niño', NINA: 'Niña', DENIM_HOMBRE: 'Denim Hombre',
+  DENIM_MUJER: 'Denim Mujer', LENCERIA: 'Lencería', ROPA_INTERIOR: 'Ropa Interior',
+  JUVENIL_HOMBRE: 'Juvenil Hombre', JUVENIL_MUJER: 'Juvenil Mujer',
+  SENORA: 'Señora', MUJER: 'Mujer', HOMBRE_CASUAL: 'Hombre Casual', HOME: 'Home',
+}
 
 export default function InventarioPage() {
   const [tab, setTab] = useState('Stock')
@@ -12,10 +20,17 @@ export default function InventarioPage() {
   const [productos, setProductos] = useState<any[]>([])
   const [movimientos, setMovimientos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtro, setFiltro] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const [filtroTexto, setFiltroTexto] = useState('')
+  const [filtroUbicacion, setFiltroUbicacion] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
+
   const [guiaDespacho, setGuiaDespacho] = useState('')
   const [proveedor, setProveedor] = useState('')
   const [totalCajas, setTotalCajas] = useState('1')
@@ -81,10 +96,21 @@ export default function InventarioPage() {
     finally { setSaving(false) }
   }
 
-  const stockFiltrado = stock.filter(s =>
-    s.Variante?.Producto?.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
-    s.Variante?.sku?.toLowerCase().includes(filtro.toLowerCase())
-  )
+  const stockFiltrado = stock.filter(s => {
+    const textoOk = !filtroTexto || s.Variante?.Producto?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase()) || s.Variante?.sku?.toLowerCase().includes(filtroTexto.toLowerCase())
+    const ubicacionOk = !filtroUbicacion || s.ubicacion === filtroUbicacion
+    const categoriaOk = !filtroCategoria || s.Variante?.Producto?.categoria === filtroCategoria
+    return textoOk && ubicacionOk && categoriaOk
+  })
+
+  const movFiltrados = movimientos.filter(m => {
+    const tipoOk = !filtroTipo || m.tipo === filtroTipo
+    const desdeOk = !filtroFechaDesde || new Date(m.creadoEn) >= new Date(filtroFechaDesde)
+    const hastaOk = !filtroFechaHasta || new Date(m.creadoEn) <= new Date(filtroFechaHasta + 'T23:59:59')
+    return tipoOk && desdeOk && hastaOk
+  })
+
+  const categorias = [...new Set(stock.map(s => s.Variante?.Producto?.categoria).filter(Boolean))]
 
   const s = {
     input: { width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' } as React.CSSProperties,
@@ -92,16 +118,29 @@ export default function InventarioPage() {
     select: { width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' } as React.CSSProperties,
     card: { background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderLeft: '4px solid var(--teal)', borderRadius: '14px', padding: '28px', boxShadow: '0 2px 12px var(--teal-bg)' } as React.CSSProperties,
     cardSmall: { background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' } as React.CSSProperties,
+    filterBtn: (active: boolean, color = 'var(--teal)', colorBorder = 'var(--teal-border)', colorBg = 'var(--teal-bg)') => ({
+      padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: active ? '600' : '400',
+      color: active ? color : 'var(--text-secondary)',
+      background: active ? colorBg : 'var(--bg-input)',
+      border: `1px solid ${active ? colorBorder : 'var(--border)'}`,
+      cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+    } as React.CSSProperties),
+    exportBtn: (color: string, shadow: string) => ({
+      background: color, color: '#fff', border: 'none', borderRadius: '8px',
+      padding: '7px 16px', fontSize: '12px', fontWeight: '600',
+      cursor: 'pointer', fontFamily: 'inherit', boxShadow: `0 2px 8px ${shadow}`,
+      display: 'flex', alignItems: 'center', gap: '6px',
+    } as React.CSSProperties),
   }
 
   return (
     <div style={{ padding: '48px', maxWidth: '1100px' }}>
 
-      {/* Header con acento teal */}
+      {/* Header */}
       <div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '2px solid var(--teal-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <div style={{ width: '8px', height: '28px', background: 'var(--teal)', borderRadius: '4px' }} />
-          <h1 style={{ fontSize: '28px', fontWeight: '600', color: 'var(--text)', letterSpacing: '-0.5px', margin: 0 }}>Inventario</h1>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text)', letterSpacing: '-0.5px', margin: 0 }}>Inventario</h1>
         </div>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '20px' }}>Control de stock y movimientos internos</p>
       </div>
@@ -110,7 +149,7 @@ export default function InventarioPage() {
       <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '4px', width: 'fit-content', marginBottom: '28px' }}>
         {TABS.map(t => (
           <button key={t} onClick={() => { setTab(t); setError(''); setSuccess('') }}
-            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: tab === t ? '600' : '400', color: tab === t ? 'var(--teal)' : 'var(--text-secondary)', background: tab === t ? 'var(--teal-bg)' : 'transparent', border: tab === t ? '1px solid var(--teal-border)' : '1px solid transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: tab === t ? '600' : '400', color: tab === t ? 'var(--teal)' : 'var(--text-secondary)', background: tab === t ? 'var(--teal-bg)' : 'transparent', border: tab === t ? '1px solid var(--teal-border)' : '1px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
             {t}
           </button>
         ))}
@@ -124,11 +163,11 @@ export default function InventarioPage() {
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginBottom: '24px' }}>
             {[
-              { label: 'Total stock', value: stock.reduce((a, s) => a + s.cantidad, 0), color: 'var(--text)', accent: 'var(--border)', shadow: 'rgba(0,0,0,0.06)' },
-              { label: 'En bodega', value: stock.filter(s => s.ubicacion === 'BODEGA').reduce((a, s) => a + s.cantidad, 0), color: 'var(--violet)', accent: 'var(--violet)', shadow: 'var(--violet-bg)' },
-              { label: 'En tienda', value: stock.filter(s => s.ubicacion === 'TIENDA').reduce((a, s) => a + s.cantidad, 0), color: 'var(--teal)', accent: 'var(--teal)', shadow: 'var(--teal-bg)' },
+              { label: 'Total stock', value: stock.reduce((a, s) => a + s.cantidad, 0), color: 'var(--text)', accent: 'var(--teal)' },
+              { label: 'En bodega', value: stock.filter(s => s.ubicacion === 'BODEGA').reduce((a, s) => a + s.cantidad, 0), color: 'var(--violet)', accent: 'var(--violet)' },
+              { label: 'En tienda', value: stock.filter(s => s.ubicacion === 'TIENDA').reduce((a, s) => a + s.cantidad, 0), color: 'var(--teal)', accent: 'var(--teal)' },
             ].map(stat => (
-              <div key={stat.label} style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderLeft: `4px solid ${stat.accent}`, borderRadius: '14px', padding: '22px', boxShadow: `0 2px 8px ${stat.shadow}` }}>
+              <div key={stat.label} style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderLeft: `4px solid ${stat.accent}`, borderRadius: '14px', padding: '22px', boxShadow: '0 2px 8px var(--teal-bg)' }}>
                 <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 12px' }}>{stat.label}</p>
                 <p style={{ fontSize: '30px', fontWeight: '700', color: stat.color, margin: 0, letterSpacing: '-1px' }}>
                   {stat.value}<span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400', marginLeft: '5px' }}>uds</span>
@@ -136,36 +175,69 @@ export default function InventarioPage() {
               </div>
             ))}
           </div>
-          <div style={{ marginBottom: '16px' }}>
-            <input value={filtro} onChange={e => setFiltro(e.target.value)} placeholder="Buscar por producto o SKU..." style={s.input} />
+
+          {/* Filtros stock */}
+          <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input value={filtroTexto} onChange={e => setFiltroTexto(e.target.value)} placeholder="Buscar producto o SKU..." style={{ ...s.input, width: '220px' }} />
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>UBICACIÓN</span>
+              {['', 'BODEGA', 'TIENDA'].map(u => (
+                <button key={u} onClick={() => setFiltroUbicacion(u)} style={s.filterBtn(filtroUbicacion === u)}>
+                  {u || 'Todas'}
+                </button>
+              ))}
+            </div>
+            <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)}
+              style={{ ...s.select, width: '150px', padding: '6px 12px', fontSize: '12px' }}>
+              <option value="">Categoría</option>
+              {categorias.map(c => <option key={c} value={c}>{CATEGORIAS_LABEL[c] || c}</option>)}
+            </select>
+            {(filtroTexto || filtroUbicacion || filtroCategoria) && (
+              <button onClick={() => { setFiltroTexto(''); setFiltroUbicacion(''); setFiltroCategoria('') }}
+                style={{ fontSize: '12px', color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                ✕ Limpiar
+              </button>
+            )}
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              {stockFiltrado.length} de {stock.length} registros
+            </span>
+            <button onClick={() => exportarStock(stockFiltrado)} style={s.exportBtn('var(--teal)', 'var(--teal-shadow)')}>
+              ↓ Excel
+            </button>
           </div>
-          <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+
+          <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--teal-border)', background: 'var(--teal-bg)' }}>
-                  {['Producto', 'SKU', 'Talla', 'Ubicación', 'Stock'].map(h => (
+                  {['Producto', 'SKU', 'Talla', 'Categoría', 'Ubicación', 'Stock'].map(h => (
                     <th key={h} style={{ textAlign: 'left', fontSize: '11px', color: 'var(--teal)', textTransform: 'uppercase', letterSpacing: '0.8px', padding: '14px 20px', fontWeight: '600' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Cargando...</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Cargando...</td></tr>
                 ) : stockFiltrado.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Sin registros de stock</td></tr>
-                ) : stockFiltrado.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{s.Variante?.Producto?.nombre}</td>
-                    <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{s.Variante?.sku}</td>
-                    <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>{s.Variante?.talla}</td>
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Sin registros</td></tr>
+                ) : stockFiltrado.map((st) => (
+                  <tr key={st.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{st.Variante?.Producto?.nombre}</td>
+                    <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{st.Variante?.sku}</td>
+                    <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>{st.Variante?.talla}</td>
                     <td style={{ padding: '12px 20px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '6px', background: s.ubicacion === 'BODEGA' ? 'var(--violet-bg)' : 'var(--teal-bg)', color: s.ubicacion === 'BODEGA' ? 'var(--violet)' : 'var(--teal)', border: `1px solid ${s.ubicacion === 'BODEGA' ? 'var(--violet-border)' : 'var(--teal-border)'}` }}>
-                        {s.ubicacion}
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', background: 'var(--bg-input)', padding: '3px 8px', borderRadius: '5px', border: '1px solid var(--border)' }}>
+                        {CATEGORIAS_LABEL[st.Variante?.Producto?.categoria] || st.Variante?.Producto?.categoria}
                       </span>
                     </td>
                     <td style={{ padding: '12px 20px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'monospace', color: s.cantidad === 0 ? 'var(--red)' : s.cantidad <= 5 ? 'var(--amber)' : 'var(--text)', background: s.cantidad === 0 ? 'var(--red-bg)' : s.cantidad <= 5 ? 'var(--amber-bg)' : 'transparent', padding: s.cantidad <= 5 ? '3px 10px' : '0', borderRadius: '6px', border: s.cantidad <= 5 ? `1px solid ${s.cantidad === 0 ? 'var(--red-border)' : 'var(--amber-border)'}` : 'none' }}>
-                        {s.cantidad} uds
+                      <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '6px', background: st.ubicacion === 'BODEGA' ? 'var(--violet-bg)' : 'var(--teal-bg)', color: st.ubicacion === 'BODEGA' ? 'var(--violet)' : 'var(--teal)', border: `1px solid ${st.ubicacion === 'BODEGA' ? 'var(--violet-border)' : 'var(--teal-border)'}` }}>
+                        {st.ubicacion}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 20px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'monospace', color: st.cantidad === 0 ? 'var(--red)' : st.cantidad <= 5 ? 'var(--amber)' : 'var(--text)', background: st.cantidad <= 5 ? (st.cantidad === 0 ? 'var(--red-bg)' : 'var(--amber-bg)') : 'transparent', padding: st.cantidad <= 5 ? '3px 10px' : '0', borderRadius: '6px', border: st.cantidad <= 5 ? `1px solid ${st.cantidad === 0 ? 'var(--red-border)' : 'var(--amber-border)'}` : 'none' }}>
+                        {st.cantidad} uds
                       </span>
                     </td>
                   </tr>
@@ -207,15 +279,11 @@ export default function InventarioPage() {
                     <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 24px', gap: '8px', alignItems: 'center' }}>
                       <select value={item.varianteId} onChange={e => updateItem(i, 'varianteId', e.target.value)} style={s.select} required>
                         <option value="">Seleccionar...</option>
-                        {todasVariantes.map((v: any) => (
-                          <option key={v.id} value={v.id}>{v.productoNombre} — T{v.talla} {v.color ? `· ${v.color}` : ''}</option>
-                        ))}
+                        {todasVariantes.map((v: any) => (<option key={v.id} value={v.id}>{v.productoNombre} — T{v.talla} {v.color ? `· ${v.color}` : ''}</option>))}
                       </select>
                       <input type="number" min="1" value={item.cantidad} onChange={e => updateItem(i, 'cantidad', e.target.value)} placeholder="Cant." style={s.input} required />
                       <input type="number" min="1" value={item.numeroCaja} onChange={e => updateItem(i, 'numeroCaja', e.target.value)} style={s.input} />
-                      {items.length > 1 && (
-                        <button type="button" onClick={() => removeItem(i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: 0 }}>✕</button>
-                      )}
+                      {items.length > 1 && <button type="button" onClick={() => removeItem(i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: 0 }}>✕</button>}
                     </div>
                   ))}
                 </div>
@@ -254,7 +322,7 @@ export default function InventarioPage() {
               </div>
               <div><label style={s.label}>Cantidad</label><input type="number" min="1" value={formTraslado.cantidad} onChange={e => setFormTraslado({ ...formTraslado, cantidad: e.target.value })} placeholder="Ej: 10" style={s.input} required /></div>
               <div><label style={s.label}>Descripción</label><input value={formTraslado.descripcion} onChange={e => setFormTraslado({ ...formTraslado, descripcion: e.target.value })} placeholder="Opcional" style={s.input} /></div>
-              <button type="submit" disabled={saving} style={{ width: '100%', background: 'var(--violet)', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1, boxShadow: '0 4px 12px var(--violet-bg)' }}>
+              <button type="submit" disabled={saving} style={{ width: '100%', background: 'var(--violet)', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
                 {saving ? 'Registrando...' : 'Confirmar traslado'}
               </button>
             </form>
@@ -277,38 +345,69 @@ export default function InventarioPage() {
 
       {/* HISTORIAL */}
       {tab === 'Historial' && (
-        <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--teal-border)', background: 'var(--teal-bg)' }}>
-                {['Tipo', 'Producto', 'Talla', 'Cantidad', 'Detalle', 'Fecha'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', fontSize: '11px', color: 'var(--teal)', textTransform: 'uppercase', letterSpacing: '0.8px', padding: '14px 20px', fontWeight: '600' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Cargando...</td></tr>
-              ) : movimientos.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Sin movimientos</td></tr>
-              ) : movimientos.map((m) => (
-                <tr key={m.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '12px 20px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '6px', background: m.tipo === 'INGRESO' ? 'var(--teal-bg)' : 'var(--violet-bg)', color: m.tipo === 'INGRESO' ? 'var(--teal)' : 'var(--violet)', border: `1px solid ${m.tipo === 'INGRESO' ? 'var(--teal-border)' : 'var(--violet-border)'}` }}>
-                      {m.tipo}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{m.Variante?.Producto?.nombre}</td>
-                  <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>{m.Variante?.talla}</td>
-                  <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text)', fontFamily: 'monospace', fontWeight: '600' }}>{m.cantidad} uds</td>
-                  <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.descripcion}</td>
-                  <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {new Date(m.creadoEn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                </tr>
+        <div>
+          <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>TIPO</span>
+              {['', 'INGRESO', 'TRASLADO'].map(t => (
+                <button key={t} onClick={() => setFiltroTipo(t)} style={s.filterBtn(filtroTipo === t)}>
+                  {t || 'Todos'}
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>DESDE</span>
+              <input type="date" value={filtroFechaDesde} onChange={e => setFiltroFechaDesde(e.target.value)} style={{ ...s.input, width: '140px', padding: '6px 10px', fontSize: '12px' }} />
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>HASTA</span>
+              <input type="date" value={filtroFechaHasta} onChange={e => setFiltroFechaHasta(e.target.value)} style={{ ...s.input, width: '140px', padding: '6px 10px', fontSize: '12px' }} />
+            </div>
+            {(filtroTipo || filtroFechaDesde || filtroFechaHasta) && (
+              <button onClick={() => { setFiltroTipo(''); setFiltroFechaDesde(''); setFiltroFechaHasta('') }}
+                style={{ fontSize: '12px', color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                ✕ Limpiar
+              </button>
+            )}
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              {movFiltrados.length} de {movimientos.length} registros
+            </span>
+            <button onClick={() => exportarMovimientos(movFiltrados)} style={s.exportBtn('var(--teal)', 'var(--teal-shadow)')}>
+              ↓ Excel
+            </button>
+          </div>
+
+          <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--teal-border)', background: 'var(--teal-bg)' }}>
+                  {['Tipo', 'Producto', 'Talla', 'Cantidad', 'Detalle', 'Fecha'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', fontSize: '11px', color: 'var(--teal)', textTransform: 'uppercase', letterSpacing: '0.8px', padding: '14px 20px', fontWeight: '600' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Cargando...</td></tr>
+                ) : movFiltrados.length === 0 ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Sin movimientos</td></tr>
+                ) : movFiltrados.map((m) => (
+                  <tr key={m.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '12px 20px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '6px', background: m.tipo === 'INGRESO' ? 'var(--teal-bg)' : 'var(--violet-bg)', color: m.tipo === 'INGRESO' ? 'var(--teal)' : 'var(--violet)', border: `1px solid ${m.tipo === 'INGRESO' ? 'var(--teal-border)' : 'var(--violet-border)'}` }}>
+                        {m.tipo}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{m.Variante?.Producto?.nombre}</td>
+                    <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>{m.Variante?.talla}</td>
+                    <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text)', fontFamily: 'monospace', fontWeight: '600' }}>{m.cantidad} uds</td>
+                    <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.descripcion}</td>
+                    <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {new Date(m.creadoEn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
