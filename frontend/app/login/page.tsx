@@ -4,6 +4,15 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 
+const formatearRut = (valor: string) => {
+  const limpio = valor.replace(/[^0-9kK]/g, '').toUpperCase()
+  if (limpio.length <= 1) return limpio
+  const cuerpo = limpio.slice(0, -1)
+  const dv = limpio.slice(-1)
+  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return `${cuerpoFormateado}-${dv}`
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [rut, setRut] = useState('')
@@ -11,12 +20,17 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const handleRut = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRut(formatearRut(e.target.value))
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.post('/api/auth/login', { rut, password })
+      const rutSinPuntos = rut.replace(/\./g, '')
+      const { data } = await api.post('/api/auth/login', { rut: rutSinPuntos, password })
       localStorage.setItem('token', data.token)
       localStorage.setItem('usuario', JSON.stringify(data.usuario))
       router.push('/dashboard')
@@ -27,67 +41,57 @@ export default function LoginPage() {
     }
   }
 
+  const s = {
+    input: {
+      width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
+      color: 'var(--text)', borderRadius: '10px', padding: '11px 14px',
+      fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+      transition: 'border-color 0.15s',
+    } as React.CSSProperties,
+    label: {
+      fontSize: '12px', color: 'var(--text-secondary)',
+      display: 'block', marginBottom: '6px', fontWeight: '500',
+    } as React.CSSProperties,
+  }
+
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-6">
-      {/* Fondo sutil */}
-      <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-black to-zinc-900" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-950/30 via-transparent to-transparent" />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div style={{ width: '100%', maxWidth: '380px' }}>
 
-      <div className="relative w-full max-w-sm">
-
-        {/* Logo */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
-            Stock<span className="text-teal-400">Flow</span>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: '600', letterSpacing: '-0.5px', color: 'var(--text)', margin: 0 }}>
+            Stock<span style={{ color: 'var(--teal)' }}>Flow</span>
           </h1>
-          <p className="text-zinc-500 text-sm mt-2 tracking-wide">Gestión de inventario</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px' }}>Gestión de inventario</p>
         </div>
 
-        {/* Form */}
-        <div className="bg-zinc-900/80 backdrop-blur-xl rounded-2xl border border-zinc-800/60 p-8 shadow-2xl">
-          <form onSubmit={handleLogin} className="space-y-4">
-
-            <div className="space-y-1.5">
-              <label className="text-zinc-400 text-xs font-medium tracking-wider uppercase">RUT</label>
-              <input
-                type="text"
-                value={rut}
-                onChange={(e) => setRut(e.target.value)}
-                placeholder="12345678-9"
-                className="w-full bg-zinc-800/60 border border-zinc-700/50 text-white placeholder-zinc-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all"
-                required
-              />
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px' }}>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={s.label}>RUT</label>
+              <input type="text" value={rut} onChange={handleRut} placeholder="12.345.678-9" maxLength={12} style={s.input} required />
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-zinc-400 text-xs font-medium tracking-wider uppercase">Contraseña</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-zinc-800/60 border border-zinc-700/50 text-white placeholder-zinc-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all"
-                required
-              />
+            <div>
+              <label style={s.label}>Contraseña</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={s.input} required />
             </div>
-
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 text-xs">
+              <div style={{ background: 'var(--red-bg)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)', borderRadius: '8px', padding: '10px 14px', fontSize: '13px' }}>
                 {error}
               </div>
             )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-teal-500 hover:bg-teal-400 active:bg-teal-600 text-black font-semibold py-3 rounded-xl text-sm transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed mt-2"
-            >
+            <button type="submit" disabled={loading} style={{
+              width: '100%', background: 'var(--teal)', color: '#fff', border: 'none',
+              borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: '600',
+              cursor: 'pointer', fontFamily: 'inherit', opacity: loading ? 0.6 : 1,
+              marginTop: '4px', transition: 'opacity 0.15s',
+            }}>
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-zinc-700 text-xs mt-8">
+        <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)', marginTop: '24px' }}>
           Fashion's Park · {new Date().getFullYear()}
         </p>
       </div>

@@ -3,85 +3,69 @@ import prisma from '../lib/prisma'
 
 export const registrarIngreso = async (req: any, res: Response) => {
   try {
-    const { varianteId, cantidad, descripcion } = req.body
+    const { guiaDespacho, proveedor, totalCajas, items } = req.body
     const { tiendaId, id: usuarioId } = req.usuario
 
-    if (!varianteId || !cantidad || cantidad <= 0) {
-      res.status(400).json({ error: 'Variante y cantidad son requeridos' })
+    if (!items || items.length === 0) {
+      res.status(400).json({ error: 'Debe ingresar al menos un producto' })
       return
     }
 
-    const variante = await prisma.variante.findFirst({
-      where: {
-        id: varianteId,
-        Producto: { tiendaId }
-      },
-      include: { Producto: true }
-    })
+    const resultados = []
 
-    if (!variante) {
-      res.status(404).json({ error: 'Variante no encontrada' })
-      return
-    }
+    for (const item of items) {
+      const { varianteId, cantidad, numeroCaja } = item
 
-    const stockExistente = await prisma.stock.findUnique({
-      where: {
-        varianteId_tiendaId_ubicacion: {
-          varianteId,
-          tiendaId,
-          ubicacion: 'BODEGA'
-        }
-      }
-    })
+      if (!varianteId || !cantidad || cantidad <= 0) continue
 
-    if (stockExistente) {
-      await prisma.stock.update({
-        where: { id: stockExistente.id },
-        data: {
-          cantidad: stockExistente.cantidad + cantidad,
-          actualizadoEn: new Date()
-        }
+      const variante = await prisma.variante.findFirst({
+        where: { id: varianteId, Producto: { tiendaId } },
+        include: { Producto: true }
       })
-    } else {
-      await prisma.stock.create({
+
+      if (!variante) continue
+
+      const stockExistente = await prisma.stock.findUnique({
+        where: { varianteId_tiendaId_ubicacion: { varianteId, tiendaId, ubicacion: 'BODEGA' } }
+      })
+
+      if (stockExistente) {
+        await prisma.stock.update({
+          where: { id: stockExistente.id },
+          data: { cantidad: stockExistente.cantidad + cantidad, actualizadoEn: new Date() }
+        })
+      } else {
+        await prisma.stock.create({
+          data: { varianteId, tiendaId, ubicacion: 'BODEGA', cantidad, actualizadoEn: new Date() }
+        })
+      }
+
+      await prisma.movimientoStock.create({
         data: {
-          varianteId,
-          tiendaId,
-          ubicacion: 'BODEGA',
+          tipo: 'INGRESO',
           cantidad,
-          actualizadoEn: new Date()
-        }
-      })
-    }
-
-    await prisma.movimientoStock.create({
-      data: {
-        tipo: 'INGRESO',
-        cantidad,
-        descripcion,
-        varianteId,
-        tiendaId,
-        usuarioId,
-        destinoUbicacion: 'BODEGA'
-      }
-    })
-
-    const stockActualizado = await prisma.stock.findUnique({
-      where: {
-        varianteId_tiendaId_ubicacion: {
+          descripcion: `Guía: ${guiaDespacho || 'S/N'} | Proveedor: ${proveedor || 'S/N'} | Cajas: ${totalCajas || 1} | Caja N°: ${numeroCaja || 1}`,
           varianteId,
           tiendaId,
-          ubicacion: 'BODEGA'
+          usuarioId,
+          destinoUbicacion: 'BODEGA'
         }
-      }
-    })
+      })
+
+      resultados.push({
+        producto: variante.Producto.nombre,
+        talla: variante.talla,
+        cantidad,
+        numeroCaja
+      })
+    }
 
     res.status(201).json({
-      message: 'Ingreso registrado exitosamente',
-      producto: variante.Producto.nombre,
-      variante: `Talla ${variante.talla} - ${variante.color}`,
-      cantidadIngresada: cantidad,
-      stockActualBodega: stockActualizado?.cantidad
+      message: `Ingreso registrado — ${resultados.length} variantes procesadas`,
+      guiaDespacho,
+      proveedor,
+      totalCajas,
+      resultados
     })
   } catch (error) {
     console.error(error)
@@ -99,11 +83,7 @@ export const getStock = async (req: any, res: Response) => {
 
     const stock = await prisma.stock.findMany({
       where,
-      include: {
-        Variante: {
-          include: { Producto: true }
-        }
-      },
+      include: { Variante: { include: { Producto: true } } },
       orderBy: { actualizadoEn: 'desc' }
     })
 
@@ -120,12 +100,8 @@ export const getStockVariante = async (req: any, res: Response) => {
     const { tiendaId } = req.usuario
 
     const stock = await prisma.stock.findMany({
-      where: { varianteId: parseInt(varianteId), tiendaId },
-      include: {
-        Variante: {
-          include: { Producto: true }
-        }
-      }
+      where: { varianteId: parseInt(varianteId as string), tiendaId },
+      include: { Variante: { include: { Producto: true } } }
     })
 
     res.json({ stock })

@@ -149,3 +149,10 @@ model Reporte {
   Tienda    Tienda  @relation(fields: [tiendaId], references: [id])
   Usuario   Usuario @relation(fields: [usuarioId], references: [id])
 }
+
+model TipoPrenda {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique
+  activo   Boolean   @default(true)
+  creadoEn DateTime  @default(now())
+}

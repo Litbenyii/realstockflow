@@ -3,29 +3,105 @@
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
 }
 
 :root {
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+
+  --bg: #f9f9f9;
+  --bg-card: #ffffff;
+  --bg-input: #f4f4f5;
+  --border: #e4e4e7;
+  --border-subtle: #f0f0f0;
+  --text: #09090b;
+  --text-secondary: #71717a;
+  --text-muted: #a1a1aa;
+
+  /* Fashion's Park rojo corporativo */
+  --fp-red: #E31B1B;
+  --fp-red-bg: rgba(227,27,27,0.06);
+  --fp-red-border: rgba(227,27,27,0.2);
+  --fp-red-shadow: rgba(227,27,27,0.15);
+
+  /* Módulo Productos - Azul */
+  --blue: #2563EB;
+  --blue-bg: rgba(37,99,235,0.06);
+  --blue-border: rgba(37,99,235,0.2);
+  --blue-shadow: rgba(37,99,235,0.15);
+
+  /* Módulo Inventario - Esmeralda */
+  --teal: #059669;
+  --teal-bg: rgba(5,150,105,0.06);
+  --teal-border: rgba(5,150,105,0.2);
+  --teal-shadow: rgba(5,150,105,0.15);
+
+  /* Módulo Ventas - Naranja */
+  --amber: #EA580C;
+  --amber-bg: rgba(234,88,12,0.06);
+  --amber-border: rgba(234,88,12,0.2);
+  --amber-shadow: rgba(234,88,12,0.15);
+
+  /* Extras */
+  --violet: #7C3AED;
+  --violet-bg: rgba(124,58,237,0.06);
+  --violet-border: rgba(124,58,237,0.2);
+
+  --red: #DC2626;
+  --red-bg: rgba(220,38,38,0.06);
+  --red-border: rgba(220,38,38,0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --bg-card: #0a0a0a;
+    --bg-input: #111111;
+    --border: #1f1f1f;
+    --border-subtle: #141414;
+    --text: #fafafa;
+    --text-secondary: #71717a;
+    --text-muted: #3f3f46;
+
+    --fp-red: #FF2D2D;
+    --fp-red-bg: rgba(255,45,45,0.08);
+    --fp-red-border: rgba(255,45,45,0.25);
+    --fp-red-shadow: rgba(255,45,45,0.12);
+
+    --blue: #3B82F6;
+    --blue-bg: rgba(59,130,246,0.08);
+    --blue-border: rgba(59,130,246,0.25);
+    --blue-shadow: rgba(59,130,246,0.12);
+
+    --teal: #10B981;
+    --teal-bg: rgba(16,185,129,0.08);
+    --teal-border: rgba(16,185,129,0.25);
+    --teal-shadow: rgba(16,185,129,0.12);
+
+    --amber: #F97316;
+    --amber-bg: rgba(249,115,22,0.08);
+    --amber-border: rgba(249,115,22,0.25);
+    --amber-shadow: rgba(249,115,22,0.12);
+
+    --violet: #A78BFA;
+    --violet-bg: rgba(167,139,250,0.08);
+    --violet-border: rgba(167,139,250,0.25);
+
+    --red: #F87171;
+    --red-bg: rgba(248,113,113,0.08);
+    --red-border: rgba(248,113,113,0.25);
+  }
 }
 
 html, body {
   font-family: var(--font-sans);
-  background: #000;
-  color: #fff;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 0;
 }
 
-/* Scrollbar estilo Apple */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
-}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::selection { background: rgba(227,27,27,0.15); }

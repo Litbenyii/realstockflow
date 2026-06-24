@@ -8,9 +8,15 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/productos', label: 'Productos' },
   { href: '/inventario', label: 'Inventario' },
-  { href: '/movimientos', label: 'Movimientos' },
   { href: '/ventas', label: 'Ventas' },
 ]
+
+const moduleColor: any = {
+  '/dashboard': 'var(--fp-red)',
+  '/productos': 'var(--blue)',
+  '/inventario': 'var(--teal)',
+  '/ventas': 'var(--amber)',
+}
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -30,51 +36,98 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     router.push('/login')
   }
 
+  const activeColor = moduleColor[pathname] || 'var(--fp-red)'
+
   return (
-    <div className="min-h-screen bg-black flex">
-      <aside className="w-60 bg-zinc-950 border-r border-zinc-800/60 flex flex-col fixed h-full">
-        <div className="px-6 py-7">
-          <h1 className="text-xl font-semibold tracking-tight text-white">
-            Stock<span className="text-teal-400">Flow</span>
-          </h1>
-          <p className="text-zinc-600 text-xs mt-0.5">Fashion's Park</p>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex' }}>
+      <aside style={{
+        width: '220px',
+        background: 'var(--bg-card)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'fixed',
+        height: '100%',
+        top: 0,
+        left: 0,
+      }}>
+        {/* Logo con rojo FP */}
+        <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '6px', height: '24px', background: 'var(--fp-red)', borderRadius: '3px' }} />
+            <div style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px', color: 'var(--text)' }}>
+              Stock<span style={{ color: 'var(--fp-red)' }}>Flow</span>
+            </div>
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', marginLeft: '14px' }}>
+            Fashion's Park
+          </div>
         </div>
 
-        <nav className="flex-1 px-3 space-y-0.5">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-                pathname === item.href
-                  ? 'bg-zinc-800 text-white font-medium'
-                  : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '16px 12px' }}>
+          {navItems.map((item) => {
+            const isActive = pathname === item.href
+            const color = moduleColor[item.href]
+            return (
+              <Link key={item.href} href={item.href} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                fontSize: '13.5px',
+                fontWeight: isActive ? '600' : '400',
+                color: isActive ? color : 'var(--text-secondary)',
+                background: isActive ? `${color}10` : 'transparent',
+                textDecoration: 'none',
+                marginBottom: '2px',
+                transition: 'all 0.15s',
+                borderLeft: isActive ? `3px solid ${color}` : '3px solid transparent',
+              }}>
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
 
+        {/* Indicador módulo activo */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: `${activeColor}08` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeColor }} />
+            <span style={{ fontSize: '11px', color: activeColor, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              {navItems.find(n => n.href === pathname)?.label || 'StockFlow'}
+            </span>
+          </div>
+        </div>
+
+        {/* Usuario */}
         {usuario && (
-          <div className="px-4 py-5 border-t border-zinc-800/60">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-7 h-7 rounded-full bg-teal-500 flex items-center justify-center text-black text-xs font-bold flex-shrink-0">
+          <div style={{ padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div style={{
+                width: '28px', height: '28px', borderRadius: '50%',
+                background: 'var(--fp-red)', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: '11px', fontWeight: '700',
+                color: '#fff', flexShrink: 0,
+              }}>
                 {usuario.nombre?.charAt(0)}
               </div>
-              <div className="min-w-0">
-                <p className="text-white text-xs font-medium truncate">{usuario.nombre}</p>
-                <p className="text-zinc-500 text-xs">{usuario.rol}</p>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {usuario.nombre}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{usuario.rol}</div>
               </div>
             </div>
-            <button onClick={handleLogout} className="text-zinc-600 hover:text-red-400 text-xs transition-colors">
+            <button onClick={handleLogout} style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', transition: 'color 0.15s' }}>
               Cerrar sesión
             </button>
           </div>
         )}
       </aside>
 
-      <main className="ml-60 flex-1 min-h-screen">
+      <main style={{ marginLeft: '220px', flex: 1, minHeight: '100vh', background: 'var(--bg)' }}>
         {children}
       </main>
     </div>

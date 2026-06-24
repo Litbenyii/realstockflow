@@ -3,23 +3,32 @@
 import { useEffect, useState } from 'react'
 import api from '@/lib/api'
 
+const TABS = ['Registrar venta', 'Devoluciones', 'Historial']
+const itemVacio = () => ({ varianteId: '', cantidad: '1' })
+
 export default function VentasPage() {
+  const [tab, setTab] = useState('Registrar venta')
   const [ventas, setVentas] = useState<any[]>([])
+  const [devoluciones, setDevoluciones] = useState<any[]>([])
   const [productos, setProductos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ varianteId: '', cantidad: '', descripcion: '' })
+  const [itemsVenta, setItemsVenta] = useState([itemVacio()])
+  const [itemsDevolucion, setItemsDevolucion] = useState([itemVacio()])
+  const [descripcionVenta, setDescripcionVenta] = useState('')
+  const [motivoDevolucion, setMotivoDevolucion] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   const fetchData = async () => {
     try {
-      const [ventasRes, prodRes] = await Promise.all([
+      const [ventasRes, prodRes, movRes] = await Promise.all([
         api.get('/api/ventas'),
         api.get('/api/productos'),
+        api.get('/api/movimientos'),
       ])
       setVentas(ventasRes.data.ventas)
+      setDevoluciones(movRes.data.movimientos.filter((m: any) => m.tipo === 'DEVOLUCION'))
       setProductos(prodRes.data.productos)
     } catch (err) {
       console.error(err)
@@ -30,20 +39,42 @@ export default function VentasPage() {
 
   useEffect(() => { fetchData() }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const todasVariantes = productos.flatMap(p =>
+    p.Variante?.map((v: any) => ({ ...v, productoNombre: p.nombre })) || []
+  )
+
+  const addItemVenta = () => setItemsVenta([...itemsVenta, itemVacio()])
+  const removeItemVenta = (i: number) => setItemsVenta(itemsVenta.filter((_, idx) => idx !== i))
+  const updateItemVenta = (i: number, field: string, value: string) => {
+    const updated = [...itemsVenta]
+    updated[i] = { ...updated[i], [field]: value }
+    setItemsVenta(updated)
+  }
+
+  const addItemDev = () => setItemsDevolucion([...itemsDevolucion, itemVacio()])
+  const removeItemDev = (i: number) => setItemsDevolucion(itemsDevolucion.filter((_, idx) => idx !== i))
+  const updateItemDev = (i: number, field: string, value: string) => {
+    const updated = [...itemsDevolucion]
+    updated[i] = { ...updated[i], [field]: value }
+    setItemsDevolucion(updated)
+  }
+
+  const handleVenta = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError('')
     setSuccess('')
     try {
       const { data } = await api.post('/api/ventas', {
-        varianteId: parseInt(form.varianteId),
-        cantidad: parseInt(form.cantidad),
-        descripcion: form.descripcion,
+        descripcion: descripcionVenta,
+        items: itemsVenta.map(i => ({
+          varianteId: parseInt(i.varianteId),
+          cantidad: parseInt(i.cantidad),
+        }))
       })
-      setSuccess(`✓ ${data.message} — Stock restante: ${data.stockRestanteTienda} uds`)
-      setForm({ varianteId: '', cantidad: '', descripcion: '' })
-      setShowForm(false)
+      setSuccess(`✓ ${data.message}`)
+      setItemsVenta([itemVacio()])
+      setDescripcionVenta('')
       fetchData()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al registrar venta')
@@ -52,131 +83,250 @@ export default function VentasPage() {
     }
   }
 
-  const todasVariantes = productos.flatMap(p =>
-    p.Variante?.map((v: any) => ({ ...v, productoNombre: p.nombre })) || []
-  )
+  const handleDevolucion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    setSuccess('')
+    try {
+      const { data } = await api.post('/api/movimientos/devolucion', {
+        descripcion: motivoDevolucion,
+        items: itemsDevolucion.map(i => ({
+          varianteId: parseInt(i.varianteId),
+          cantidad: parseInt(i.cantidad),
+        }))
+      })
+      setSuccess(`✓ ${data.message}`)
+      setItemsDevolucion([itemVacio()])
+      setMotivoDevolucion('')
+      fetchData()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al registrar devolución')
+    } finally {
+      setSaving(false)
+    }
+  }
 
-  const totalVentas = ventas.reduce((acc, v) => acc + v.cantidad, 0)
+  const totalUnidadesVenta = itemsVenta.reduce((a, i) => a + (parseInt(i.cantidad) || 0), 0)
+  const totalUnidadesDev = itemsDevolucion.reduce((a, i) => a + (parseInt(i.cantidad) || 0), 0)
 
-  return (
-    <div className="px-10 py-10 max-w-6xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-white tracking-tight">Ventas</h1>
-          <p className="text-zinc-500 text-sm mt-1">{ventas.length} ventas · {totalVentas} unidades vendidas</p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-amber-500 hover:bg-amber-400 text-black font-semibold px-5 py-2.5 rounded-xl text-sm transition-all"
-        >
-          {showForm ? 'Cancelar' : '+ Registrar venta'}
+  const s = {
+    card: {
+      background: 'var(--bg-card)',
+      border: '1.5px solid var(--border)',
+      borderLeft: '4px solid var(--amber)',
+      borderRadius: '14px',
+      padding: '28px',
+      boxShadow: '0 2px 12px var(--amber-bg)',
+    } as React.CSSProperties,
+    cardSmall: {
+      background: 'var(--bg-card)',
+      border: '1.5px solid var(--border)',
+      borderRadius: '14px',
+      padding: '24px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    } as React.CSSProperties,
+    input: {
+      width: '100%', background: 'var(--bg-input)',
+      border: '1px solid var(--border)', color: 'var(--text)',
+      borderRadius: '10px', padding: '10px 14px', fontSize: '13px',
+      outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+    } as React.CSSProperties,
+    label: {
+      fontSize: '11px', color: 'var(--text-secondary)',
+      textTransform: 'uppercase' as const, letterSpacing: '0.8px',
+      display: 'block', marginBottom: '6px',
+    },
+    select: {
+      width: '100%', background: 'var(--bg-input)',
+      border: '1px solid var(--border)', color: 'var(--text)',
+      borderRadius: '10px', padding: '10px 14px', fontSize: '13px',
+      outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
+      boxSizing: 'border-box',
+    } as React.CSSProperties,
+  }
+
+  const ItemsGrid = ({ items, update, remove, add }: any) => (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <span style={s.label}>Productos</span>
+        <button type="button" onClick={add} style={{ fontSize: '12px', color: 'var(--amber)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: '600' }}>
+          + Agregar producto
         </button>
       </div>
-
-      {success && (
-        <div className="bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded-xl px-4 py-3 text-sm mb-4">
-          {success}
+      <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 24px', gap: '8px' }}>
+          <span style={{ ...s.label, margin: 0 }}>Variante</span>
+          <span style={{ ...s.label, margin: 0 }}>Cant.</span>
+          <span />
         </div>
-      )}
-
-      {showForm && (
-        <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6 mb-6">
-          <h2 className="text-white font-medium mb-5">Registrar venta</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-zinc-500 text-xs uppercase tracking-wider mb-1.5 block">Variante</label>
-                <select
-                  value={form.varianteId}
-                  onChange={e => setForm({...form, varianteId: e.target.value})}
-                  className="w-full bg-zinc-800/60 border border-zinc-700/50 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-                  required
-                >
-                  <option value="">Seleccionar variante...</option>
-                  {todasVariantes.map((v: any) => (
-                    <option key={v.id} value={v.id}>
-                      {v.productoNombre} — Talla {v.talla} {v.color ? `· ${v.color}` : ''} ({v.sku})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-zinc-500 text-xs uppercase tracking-wider mb-1.5 block">Cantidad</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.cantidad}
-                  onChange={e => setForm({...form, cantidad: e.target.value})}
-                  placeholder="Ej: 1"
-                  className="w-full bg-zinc-800/60 border border-zinc-700/50 text-white placeholder-zinc-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-zinc-500 text-xs uppercase tracking-wider mb-1.5 block">Descripción</label>
-              <input
-                value={form.descripcion}
-                onChange={e => setForm({...form, descripcion: e.target.value})}
-                placeholder="Opcional"
-                className="w-full bg-zinc-800/60 border border-zinc-700/50 text-white placeholder-zinc-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-              />
-            </div>
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 text-xs">
-                {error}
-              </div>
+        {items.map((item: any, i: number) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 24px', gap: '8px', alignItems: 'center' }}>
+            <select value={item.varianteId} onChange={e => update(i, 'varianteId', e.target.value)} style={s.select} required>
+              <option value="">Seleccionar...</option>
+              {todasVariantes.map((v: any) => (
+                <option key={v.id} value={v.id}>{v.productoNombre} — T{v.talla} {v.color ? `· ${v.color}` : ''}</option>
+              ))}
+            </select>
+            <input type="number" min="1" value={item.cantidad} onChange={e => update(i, 'cantidad', e.target.value)} style={s.input} required />
+            {items.length > 1 && (
+              <button type="button" onClick={() => remove(i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: 0 }}>✕</button>
             )}
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowForm(false)} className="text-zinc-500 hover:text-white text-sm transition-colors px-4">
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="bg-amber-500 hover:bg-amber-400 text-black font-semibold px-6 py-2.5 rounded-xl text-sm transition-all disabled:opacity-40"
-              >
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ padding: '48px', maxWidth: '1100px' }}>
+      {/* Header con acento ámbar */}
+      <div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '2px solid var(--amber-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+          <div style={{ width: '8px', height: '28px', background: 'var(--amber)', borderRadius: '4px' }} />
+          <h1 style={{ fontSize: '28px', fontWeight: '600', color: 'var(--text)', letterSpacing: '-0.5px', margin: 0 }}>Ventas</h1>
+        </div>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '20px' }}>
+          {ventas.length} ventas · {ventas.reduce((a, v) => a + v.cantidad, 0)} unidades vendidas
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '4px', width: 'fit-content', marginBottom: '28px' }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => { setTab(t); setError(''); setSuccess('') }}
+            style={{
+              padding: '8px 18px', borderRadius: '8px', fontSize: '13px',
+              fontWeight: tab === t ? '600' : '400',
+              color: tab === t ? 'var(--amber)' : 'var(--text-secondary)',
+              background: tab === t ? 'var(--amber-bg)' : 'transparent',
+              border: tab === t ? '1px solid var(--amber-border)' : '1px solid transparent',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+            }}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {success && <div style={{ background: 'var(--teal-bg)', border: '1px solid var(--teal-border)', color: 'var(--teal)', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', marginBottom: '20px' }}>{success}</div>}
+      {error && <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', marginBottom: '20px' }}>{error}</div>}
+
+      {/* REGISTRAR VENTA */}
+      {tab === 'Registrar venta' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '16px', alignItems: 'start' }}>
+          <div style={s.card}>
+            <p style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', margin: '0 0 4px' }}>Registrar venta</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 24px' }}>El stock se descuenta de tienda automáticamente</p>
+            <form onSubmit={handleVenta} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <ItemsGrid items={itemsVenta} update={updateItemVenta} remove={removeItemVenta} add={addItemVenta} />
+              <div>
+                <label style={s.label}>Observación</label>
+                <input value={descripcionVenta} onChange={e => setDescripcionVenta(e.target.value)} placeholder="Opcional" style={s.input} />
+              </div>
+              <button type="submit" disabled={saving} style={{
+                width: '100%', background: 'var(--amber)', color: '#fff',
+                border: 'none', borderRadius: '10px', padding: '12px',
+                fontSize: '14px', fontWeight: '700', cursor: 'pointer',
+                fontFamily: 'inherit', opacity: saving ? 0.6 : 1,
+                boxShadow: '0 4px 12px var(--amber-shadow)',
+              }}>
                 {saving ? 'Registrando...' : 'Confirmar venta'}
               </button>
+            </form>
+          </div>
+
+          <div style={s.cardSmall}>
+            <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', margin: '0 0 20px' }}>Resumen</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Productos</span>
+                <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600' }}>{itemsVenta.filter(i => i.varianteId).length}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total unidades</span>
+                <span style={{ fontSize: '28px', color: 'var(--amber)', fontWeight: '700', fontFamily: 'monospace' }}>{totalUnidadesVenta}</span>
+              </div>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
-      <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-zinc-800/60">
-              <th className="text-left text-zinc-500 text-xs uppercase tracking-wider px-5 py-3.5">Producto</th>
-              <th className="text-left text-zinc-500 text-xs uppercase tracking-wider px-5 py-3.5">Talla</th>
-              <th className="text-left text-zinc-500 text-xs uppercase tracking-wider px-5 py-3.5">SKU</th>
-              <th className="text-left text-zinc-500 text-xs uppercase tracking-wider px-5 py-3.5">Cantidad</th>
-              <th className="text-left text-zinc-500 text-xs uppercase tracking-wider px-5 py-3.5">Cajero</th>
-              <th className="text-left text-zinc-500 text-xs uppercase tracking-wider px-5 py-3.5">Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={6} className="text-center text-zinc-600 py-10 text-sm">Cargando...</td></tr>
-            ) : ventas.length === 0 ? (
-              <tr><td colSpan={6} className="text-center text-zinc-600 py-10 text-sm">Sin ventas registradas</td></tr>
-            ) : (
-              ventas.map((v) => (
-                <tr key={v.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                  <td className="px-5 py-3.5 text-white text-sm">{v.Variante?.Producto?.nombre}</td>
-                  <td className="px-5 py-3.5 text-zinc-400 text-sm">{v.Variante?.talla}</td>
-                  <td className="px-5 py-3.5 text-zinc-500 text-xs font-mono">{v.Variante?.sku}</td>
-                  <td className="px-5 py-3.5 text-amber-400 text-sm font-mono font-semibold">{v.cantidad} uds</td>
-                  <td className="px-5 py-3.5 text-zinc-400 text-sm">{v.Usuario?.nombre}</td>
-                  <td className="px-5 py-3.5 text-zinc-500 text-xs">
+      {/* DEVOLUCIONES */}
+      {tab === 'Devoluciones' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '16px', alignItems: 'start' }}>
+          <div style={{ ...s.card, borderLeft: '4px solid var(--red)', boxShadow: '0 2px 12px var(--red-bg)' }}>
+            <p style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', margin: '0 0 4px' }}>Registrar devolución</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 24px' }}>Los productos vuelven al stock de tienda</p>
+            <form onSubmit={handleDevolucion} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <ItemsGrid items={itemsDevolucion} update={updateItemDev} remove={removeItemDev} add={addItemDev} />
+              <div>
+                <label style={s.label}>Motivo</label>
+                <input value={motivoDevolucion} onChange={e => setMotivoDevolucion(e.target.value)} placeholder="Ej: Talla incorrecta, producto defectuoso..." style={s.input} />
+              </div>
+              <button type="submit" disabled={saving} style={{
+                width: '100%', background: 'transparent', color: 'var(--red)',
+                border: '1.5px solid var(--red-border)', borderRadius: '10px', padding: '12px',
+                fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                fontFamily: 'inherit', opacity: saving ? 0.6 : 1,
+              }}>
+                {saving ? 'Registrando...' : 'Confirmar devolución'}
+              </button>
+            </form>
+          </div>
+
+          <div style={s.cardSmall}>
+            <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', margin: '0 0 20px' }}>Resumen</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Productos</span>
+                <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600' }}>{itemsDevolucion.filter(i => i.varianteId).length}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total unidades</span>
+                <span style={{ fontSize: '28px', color: 'var(--red)', fontWeight: '700', fontFamily: 'monospace' }}>{totalUnidadesDev}</span>
+              </div>
+            </div>
+            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Devoluciones registradas: {devoluciones.length}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HISTORIAL */}
+      {tab === 'Historial' && (
+        <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--amber-border)', background: 'var(--amber-bg)' }}>
+                {['Producto', 'Talla', 'SKU', 'Cantidad', 'Cajero', 'Fecha'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', fontSize: '11px', color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.8px', padding: '14px 20px', fontWeight: '600' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Cargando...</td></tr>
+              ) : ventas.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px', fontSize: '13px' }}>Sin ventas registradas</td></tr>
+              ) : ventas.map((v) => (
+                <tr key={v.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text)' }}>{v.Variante?.Producto?.nombre}</td>
+                  <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>{v.Variante?.talla}</td>
+                  <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{v.Variante?.sku}</td>
+                  <td style={{ padding: '12px 20px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'monospace', color: 'var(--amber)', background: 'var(--amber-bg)', padding: '3px 10px', borderRadius: '6px', border: '1px solid var(--amber-border)' }}>{v.cantidad} uds</span>
+                  </td>
+                  <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>{v.Usuario?.nombre}</td>
+                  <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--text-muted)' }}>
                     {new Date(v.creadoEn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

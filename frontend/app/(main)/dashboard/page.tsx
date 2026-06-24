@@ -17,106 +17,127 @@ export default function DashboardPage() {
         ])
         setStock(stockRes.data.stock)
         setMovimientos(movRes.data.movimientos)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+      } catch (err) { console.error(err) }
+      finally { setLoading(false) }
     }
     fetchData()
   }, [])
 
-  const stockBodega = stock.filter(s => s.ubicacion === 'BODEGA').reduce((acc, s) => acc + s.cantidad, 0)
-  const stockTienda = stock.filter(s => s.ubicacion === 'TIENDA').reduce((acc, s) => acc + s.cantidad, 0)
+  const stockBodega = stock.filter(s => s.ubicacion === 'BODEGA').reduce((a, s) => a + s.cantidad, 0)
+  const stockTienda = stock.filter(s => s.ubicacion === 'TIENDA').reduce((a, s) => a + s.cantidad, 0)
   const criticos = stock.filter(s => s.cantidad <= 5)
 
-  const tipoColor: any = {
-    INGRESO: 'text-teal-400',
-    TRASLADO: 'text-violet-400',
-    VENTA: 'text-amber-400',
-    DEVOLUCION: 'text-red-400',
+  const tipoMeta: any = {
+    INGRESO:    { color: 'var(--teal)',    label: 'Ingreso'     },
+    TRASLADO:   { color: 'var(--violet)',  label: 'Traslado'    },
+    VENTA:      { color: 'var(--amber)',   label: 'Venta'       },
+    DEVOLUCION: { color: 'var(--red)',     label: 'Devolución'  },
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div style={{ width: '20px', height: '20px', border: '2px solid var(--fp-red)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
     </div>
   )
 
   return (
-    <div className="px-10 py-10 max-w-6xl">
+    <div style={{ padding: '48px', maxWidth: '1100px' }}>
 
       {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-2xl font-semibold text-white tracking-tight">Dashboard</h1>
-        <p className="text-zinc-500 text-sm mt-1">Resumen operativo · {new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      <div style={{ marginBottom: '40px', paddingBottom: '24px', borderBottom: '2px solid var(--fp-red-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+          <div style={{ width: '8px', height: '28px', background: 'var(--fp-red)', borderRadius: '4px' }} />
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text)', letterSpacing: '-0.5px', margin: 0 }}>Dashboard</h1>
+        </div>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '20px' }}>
+          {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '32px' }}>
         {[
-          { label: 'Stock total', value: stockBodega + stockTienda, unit: 'uds' },
-          { label: 'En bodega', value: stockBodega, unit: 'uds' },
-          { label: 'En tienda', value: stockTienda, unit: 'uds' },
-          { label: 'Stock crítico', value: criticos.length, unit: 'items', alert: criticos.length > 0 },
+          { label: 'Stock total', value: stockBodega + stockTienda, color: 'var(--text)', accent: 'var(--fp-red)', shadow: 'var(--fp-red-shadow)' },
+          { label: 'En bodega', value: stockBodega, color: 'var(--violet)', accent: 'var(--violet)', shadow: 'var(--violet-bg)' },
+          { label: 'En tienda', value: stockTienda, color: 'var(--teal)', accent: 'var(--teal)', shadow: 'var(--teal-shadow)' },
+          { label: 'Stock crítico', value: criticos.length, color: criticos.length > 0 ? 'var(--red)' : 'var(--text)', accent: criticos.length > 0 ? 'var(--red)' : 'var(--border)', shadow: criticos.length > 0 ? 'var(--red-bg)' : 'rgba(0,0,0,0.04)' },
         ].map((stat) => (
-          <div key={stat.label} className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5">
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-3">{stat.label}</p>
-            <p className={`text-3xl font-semibold ${stat.alert ? 'text-red-400' : 'text-white'}`}>
+          <div key={stat.label} style={{
+            background: 'var(--bg-card)',
+            border: '1.5px solid var(--border)',
+            borderLeft: `4px solid ${stat.accent}`,
+            borderRadius: '14px',
+            padding: '22px',
+            boxShadow: `0 2px 12px ${stat.shadow}`,
+            transition: 'transform 0.15s, box-shadow 0.15s',
+          }}>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 14px' }}>{stat.label}</p>
+            <p style={{ fontSize: '30px', fontWeight: '700', color: stat.color, margin: 0, letterSpacing: '-1px' }}>
               {stat.value}
-              <span className="text-sm text-zinc-600 font-normal ml-1.5">{stat.unit}</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400', marginLeft: '5px' }}>uds</span>
             </p>
           </div>
         ))}
       </div>
 
-      {/* Grid inferior */}
-      <div className="grid grid-cols-2 gap-6">
+      {/* Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
 
         {/* Movimientos */}
-        <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6">
-          <h2 className="text-white text-sm font-medium mb-5">Movimientos recientes</h2>
-          <div className="space-y-1">
-            {movimientos.slice(0, 7).map((mov) => (
-              <div key={mov.id} className="flex items-center justify-between py-2.5 border-b border-zinc-800/40 last:border-0">
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium w-20 ${tipoColor[mov.tipo] || 'text-zinc-400'}`}>
-                    {mov.tipo}
-                  </span>
-                  <span className="text-zinc-400 text-xs">
-                    {mov.Variante?.Producto?.nombre} · T{mov.Variante?.talla}
+        <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '4px', height: '14px', background: 'var(--fp-red)', borderRadius: '2px', display: 'inline-block' }} />
+            Movimientos recientes
+          </p>
+          {movimientos.length === 0 ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>Sin movimientos</p>
+          ) : movimientos.slice(0, 6).map((m) => {
+            const meta = tipoMeta[m.tipo] || { color: 'var(--text-secondary)', label: m.tipo }
+            return (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{
+                    fontSize: '10px', fontWeight: '700', color: meta.color,
+                    background: `${meta.color}12`, padding: '3px 8px',
+                    borderRadius: '5px', border: `1px solid ${meta.color}25`,
+                    minWidth: '68px', textAlign: 'center',
+                  }}>{meta.label}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {m.Variante?.Producto?.nombre} · T{m.Variante?.talla}
                   </span>
                 </div>
-                <span className="text-zinc-500 text-xs font-mono">{mov.cantidad} uds</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{m.cantidad} uds</span>
               </div>
-            ))}
-            {movimientos.length === 0 && (
-              <p className="text-zinc-600 text-sm text-center py-6">Sin movimientos</p>
-            )}
-          </div>
+            )
+          })}
         </div>
 
-        {/* Stock crítico */}
-        <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6">
-          <h2 className="text-white text-sm font-medium mb-5">Stock crítico</h2>
-          <div className="space-y-1">
-            {criticos.slice(0, 7).map((s) => (
-              <div key={s.id} className="flex items-center justify-between py-2.5 border-b border-zinc-800/40 last:border-0">
-                <div>
-                  <p className="text-zinc-300 text-xs">{s.Variante?.Producto?.nombre}</p>
-                  <p className="text-zinc-600 text-xs mt-0.5">Talla {s.Variante?.talla} · {s.ubicacion}</p>
-                </div>
-                <span className={`text-xs font-mono font-semibold ${s.cantidad === 0 ? 'text-red-400' : 'text-amber-400'}`}>
-                  {s.cantidad} uds
-                </span>
+        {/* Críticos */}
+        <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderLeft: '4px solid var(--red)', borderRadius: '14px', padding: '24px', boxShadow: '0 2px 12px var(--red-bg)' }}>
+          <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '4px', height: '14px', background: 'var(--red)', borderRadius: '2px', display: 'inline-block' }} />
+            Stock crítico
+          </p>
+          {criticos.length === 0 ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>Sin alertas ✓</p>
+          ) : criticos.slice(0, 6).map((s) => (
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{s.Variante?.Producto?.nombre}</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>T{s.Variante?.talla} · {s.ubicacion}</p>
               </div>
-            ))}
-            {criticos.length === 0 && (
-              <p className="text-zinc-600 text-sm text-center py-6">Sin alertas críticas ✓</p>
-            )}
-          </div>
+              <span style={{
+                fontSize: '13px', fontWeight: '700', fontFamily: 'monospace',
+                color: s.cantidad === 0 ? 'var(--red)' : 'var(--amber)',
+                background: s.cantidad === 0 ? 'var(--red-bg)' : 'var(--amber-bg)',
+                padding: '3px 10px', borderRadius: '6px',
+                border: `1px solid ${s.cantidad === 0 ? 'var(--red-border)' : 'var(--amber-border)'}`,
+              }}>
+                {s.cantidad} uds
+              </span>
+            </div>
+          ))}
         </div>
-
       </div>
     </div>
   )

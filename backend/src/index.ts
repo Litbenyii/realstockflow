@@ -6,6 +6,7 @@ import productosRoutes from './routes/productos.routes'
 import inventarioRoutes from './routes/inventario.routes'
 import movimientosRoutes from './routes/movimientos.routes'
 import ventasRoutes from './routes/ventas.routes'
+import tiposPrendaRoutes from './routes/tiposPrenda.routes'
 
 dotenv.config()
 
@@ -24,6 +25,7 @@ app.use('/api/productos', productosRoutes)
 app.use('/api/inventario', inventarioRoutes)
 app.use('/api/movimientos', movimientosRoutes)
 app.use('/api/ventas', ventasRoutes)
+app.use('/api/tipos-prenda', tiposPrendaRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`)
