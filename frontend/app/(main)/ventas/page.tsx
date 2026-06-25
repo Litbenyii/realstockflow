@@ -20,8 +20,6 @@ export default function VentasPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-
-  // Filtros historial
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [filtroProducto, setFiltroProducto] = useState('')
@@ -92,7 +90,6 @@ export default function VentasPage() {
     finally { setSaving(false) }
   }
 
-  // Filtros historial ventas
   const ventasFiltradas = ventas.filter(v => {
     const desdeOk = !filtroFechaDesde || new Date(v.creadoEn) >= new Date(filtroFechaDesde)
     const hastaOk = !filtroFechaHasta || new Date(v.creadoEn) <= new Date(filtroFechaHasta + 'T23:59:59')
@@ -109,13 +106,7 @@ export default function VentasPage() {
     input: { width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' } as React.CSSProperties,
     label: { fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.8px', display: 'block', marginBottom: '6px' },
     select: { width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' } as React.CSSProperties,
-    filterBtn: (active: boolean) => ({
-      padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: active ? '600' : '400',
-      color: active ? 'var(--amber)' : 'var(--text-secondary)',
-      background: active ? 'var(--amber-bg)' : 'var(--bg-input)',
-      border: `1px solid ${active ? 'var(--amber-border)' : 'var(--border)'}`,
-      cursor: 'pointer', fontFamily: 'inherit',
-    } as React.CSSProperties),
+    exportBtn: { background: 'var(--amber)', color: '#fff', border: 'none', borderRadius: '8px', padding: '7px 16px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px var(--amber-shadow)' } as React.CSSProperties,
   }
 
   const ItemsGrid = ({ items, update, remove, add, color }: any) => (
@@ -152,8 +143,6 @@ export default function VentasPage() {
 
   return (
     <div style={{ padding: '48px', maxWidth: '1100px' }}>
-
-      {/* Header */}
       <div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '2px solid var(--amber-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <div style={{ width: '8px', height: '28px', background: 'var(--amber)', borderRadius: '4px' }} />
@@ -164,7 +153,6 @@ export default function VentasPage() {
         </p>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '4px', width: 'fit-content', marginBottom: '28px' }}>
         {TABS.map(t => (
           <button key={t} onClick={() => { setTab(t); setError(''); setSuccess('') }}
@@ -177,7 +165,6 @@ export default function VentasPage() {
       {success && <div style={{ background: 'var(--teal-bg)', border: '1px solid var(--teal-border)', color: 'var(--teal)', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', marginBottom: '20px' }}>{success}</div>}
       {error && <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', marginBottom: '20px' }}>{error}</div>}
 
-      {/* REGISTRAR VENTA */}
       {tab === 'Registrar venta' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '16px', alignItems: 'start' }}>
           <div style={s.card}>
@@ -210,7 +197,6 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* DEVOLUCIONES */}
       {tab === 'Devoluciones' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '16px', alignItems: 'start' }}>
           <div style={{ ...s.card, borderLeft: '4px solid var(--red)', boxShadow: '0 2px 12px var(--red-bg)' }}>
@@ -246,10 +232,8 @@ export default function VentasPage() {
         </div>
       )}
 
-      {/* HISTORIAL */}
       {tab === 'Historial' && (
         <div>
-          {/* Filtros */}
           <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input value={filtroProducto} onChange={e => setFiltroProducto(e.target.value)} placeholder="Buscar producto..." style={{ ...s.input, width: '200px' }} />
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -265,8 +249,11 @@ export default function VentasPage() {
               </button>
             )}
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-              {ventasFiltradas.length} de {ventas.length} ventas · {ventasFiltradas.reduce((a, v) => a + v.cantidad, 0)} uds</span><button onClick={() => exportarVentas(ventasFiltradas)} style={{background:"var(--amber)",color:"#fff",border:"none",borderRadius:"8px",padding:"7px 16px",fontSize:"12px",fontWeight:"600",cursor:"pointer",fontFamily:"inherit"}}>↓ Exportar Excel</button><span style={{display:"none"}}
+              {ventasFiltradas.length} de {ventas.length} ventas
             </span>
+            <button onClick={() => exportarVentas(ventasFiltradas)} style={s.exportBtn}>
+              ↓ Excel
+            </button>
           </div>
 
           <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
