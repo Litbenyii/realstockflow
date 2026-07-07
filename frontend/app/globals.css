@@ -18,31 +18,26 @@
   --text-secondary: #71717a;
   --text-muted: #a1a1aa;
 
-  /* Fashion's Park rojo corporativo */
   --fp-red: #E31B1B;
   --fp-red-bg: rgba(227,27,27,0.06);
   --fp-red-border: rgba(227,27,27,0.2);
   --fp-red-shadow: rgba(227,27,27,0.15);
 
-  /* Módulo Productos - Azul */
   --blue: #2563EB;
   --blue-bg: rgba(37,99,235,0.06);
   --blue-border: rgba(37,99,235,0.2);
   --blue-shadow: rgba(37,99,235,0.15);
 
-  /* Módulo Inventario - Esmeralda */
   --teal: #059669;
   --teal-bg: rgba(5,150,105,0.06);
   --teal-border: rgba(5,150,105,0.2);
   --teal-shadow: rgba(5,150,105,0.15);
 
-  /* Módulo Ventas - Naranja */
   --amber: #EA580C;
   --amber-bg: rgba(234,88,12,0.06);
   --amber-border: rgba(234,88,12,0.2);
   --amber-shadow: rgba(234,88,12,0.15);
 
-  /* Extras */
   --violet: #7C3AED;
   --violet-bg: rgba(124,58,237,0.06);
   --violet-border: rgba(124,58,237,0.2);
@@ -54,41 +49,42 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #000000;
-    --bg-card: #0a0a0a;
-    --bg-input: #111111;
-    --border: #1f1f1f;
-    --border-subtle: #141414;
-    --text: #fafafa;
-    --text-secondary: #71717a;
-    --text-muted: #3f3f46;
+    /* Gris oscuro cálido — similar a Claude */
+    --bg: #242424;
+    --bg-card: #2f2f2f;
+    --bg-input: #383838;
+    --border: #424242;
+    --border-subtle: #333333;
+    --text: #f5f5f5;
+    --text-secondary: #a3a3a3;
+    --text-muted: #6b6b6b;
 
-    --fp-red: #FF2D2D;
-    --fp-red-bg: rgba(255,45,45,0.08);
-    --fp-red-border: rgba(255,45,45,0.25);
-    --fp-red-shadow: rgba(255,45,45,0.12);
+    --fp-red: #FF3B3B;
+    --fp-red-bg: rgba(255,59,59,0.1);
+    --fp-red-border: rgba(255,59,59,0.25);
+    --fp-red-shadow: rgba(255,59,59,0.12);
 
-    --blue: #3B82F6;
-    --blue-bg: rgba(59,130,246,0.08);
-    --blue-border: rgba(59,130,246,0.25);
-    --blue-shadow: rgba(59,130,246,0.12);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.1);
+    --blue-border: rgba(96,165,250,0.25);
+    --blue-shadow: rgba(96,165,250,0.12);
 
-    --teal: #10B981;
-    --teal-bg: rgba(16,185,129,0.08);
-    --teal-border: rgba(16,185,129,0.25);
-    --teal-shadow: rgba(16,185,129,0.12);
+    --teal: #34d399;
+    --teal-bg: rgba(52,211,153,0.1);
+    --teal-border: rgba(52,211,153,0.25);
+    --teal-shadow: rgba(52,211,153,0.12);
 
-    --amber: #F97316;
-    --amber-bg: rgba(249,115,22,0.08);
-    --amber-border: rgba(249,115,22,0.25);
-    --amber-shadow: rgba(249,115,22,0.12);
+    --amber: #fb923c;
+    --amber-bg: rgba(251,146,60,0.1);
+    --amber-border: rgba(251,146,60,0.25);
+    --amber-shadow: rgba(251,146,60,0.12);
 
-    --violet: #A78BFA;
-    --violet-bg: rgba(167,139,250,0.08);
+    --violet: #a78bfa;
+    --violet-bg: rgba(167,139,250,0.1);
     --violet-border: rgba(167,139,250,0.25);
 
-    --red: #F87171;
-    --red-bg: rgba(248,113,113,0.08);
+    --red: #f87171;
+    --red-bg: rgba(248,113,113,0.1);
     --red-border: rgba(248,113,113,0.25);
   }
 }
