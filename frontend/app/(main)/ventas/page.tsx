@@ -239,7 +239,6 @@ export default function VentasPage() {
                 color: isActive ? 'var(--amber)' : 'var(--text-secondary)',
                 background: isActive ? 'var(--amber-bg)' : 'transparent',
                 borderRight: '1px solid var(--border)', border: 'none',
-                borderRight: '1px solid var(--border)',
                 cursor: 'pointer', fontFamily: 'inherit', minWidth: '90px',
               }}>
               <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
