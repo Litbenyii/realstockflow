@@ -3,37 +3,83 @@
 import { useEffect, useState } from 'react'
 import api from '@/lib/api'
 import { exportarVentas } from '@/lib/exportar'
+import { IconShoppingCart, IconArrowBackUp, IconHistory, IconCircleCheck, IconAlertCircle, IconX } from '@tabler/icons-react'
 
-const TABS = ['Registrar venta', 'Devoluciones', 'Historial']
+const TABS = [
+  { id: 'Registrar venta', label: 'Venta', Icon: IconShoppingCart },
+  { id: 'Devoluciones', label: 'Devolución', Icon: IconArrowBackUp },
+  { id: 'Historial', label: 'Historial', Icon: IconHistory },
+]
+
 const itemVacio = () => ({ varianteId: '', cantidad: '1' })
+
+function Toast({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 6000)
+    return () => clearTimeout(t)
+  }, [message])
+
+  const isSuccess = type === 'success'
+  const color = isSuccess ? 'var(--teal)' : 'var(--red)'
+  const bg = isSuccess ? 'var(--bg-card)' : 'var(--bg-card)'
+  const border = isSuccess ? 'var(--teal-border)' : 'var(--red-border)'
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+      background: bg, border: `1.5px solid ${border}`,
+      borderLeft: `4px solid ${color}`,
+      borderRadius: '12px', padding: '14px 16px',
+      display: 'flex', alignItems: 'flex-start', gap: '12px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+      maxWidth: '360px', minWidth: '280px',
+    }}>
+      {isSuccess
+        ? <IconCircleCheck size={20} style={{ color, flexShrink: 0, marginTop: '1px' }} />
+        : <IconAlertCircle size={20} style={{ color, flexShrink: 0, marginTop: '1px' }} />
+      }
+      <div style={{ flex: 1 }}>
+        <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', margin: '0 0 2px' }}>
+          {isSuccess ? 'Operación exitosa' : 'Error'}
+        </p>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{message}</p>
+      </div>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, flexShrink: 0 }}>
+        <IconX size={16} />
+      </button>
+    </div>
+  )
+}
 
 export default function VentasPage() {
   const [tab, setTab] = useState('Registrar venta')
   const [ventas, setVentas] = useState<any[]>([])
   const [devoluciones, setDevoluciones] = useState<any[]>([])
   const [productos, setProductos] = useState<any[]>([])
+  const [stock, setStock] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [itemsVenta, setItemsVenta] = useState([itemVacio()])
   const [itemsDevolucion, setItemsDevolucion] = useState([itemVacio()])
   const [descripcionVenta, setDescripcionVenta] = useState('')
   const [motivoDevolucion, setMotivoDevolucion] = useState('')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null)
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [filtroProducto, setFiltroProducto] = useState('')
 
   const fetchData = async () => {
     try {
-      const [ventasRes, prodRes, movRes] = await Promise.all([
+      const [ventasRes, prodRes, movRes, stockRes] = await Promise.all([
         api.get('/api/ventas'),
         api.get('/api/productos'),
         api.get('/api/movimientos'),
+        api.get('/api/inventario/stock'),
       ])
       setVentas(ventasRes.data.ventas)
       setDevoluciones(movRes.data.movimientos.filter((m: any) => m.tipo === 'DEVOLUCION'))
       setProductos(prodRes.data.productos)
+      setStock(stockRes.data.stock)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -43,6 +89,12 @@ export default function VentasPage() {
   const todasVariantes = productos.flatMap(p =>
     p.Variante?.map((v: any) => ({ ...v, productoNombre: p.nombre })) || []
   )
+
+  const getStockTienda = (varianteId: string) => {
+    if (!varianteId) return null
+    const s = stock.find(s => s.varianteId === parseInt(varianteId) && s.ubicacion === 'TIENDA')
+    return s?.cantidad ?? 0
+  }
 
   const addItemVenta = () => setItemsVenta([...itemsVenta, itemVacio()])
   const removeItemVenta = (i: number) => setItemsVenta(itemsVenta.filter((_, idx) => idx !== i))
@@ -62,32 +114,34 @@ export default function VentasPage() {
 
   const handleVenta = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSaving(true); setError(''); setSuccess('')
+    setSaving(true)
     try {
       const { data } = await api.post('/api/ventas', {
         descripcion: descripcionVenta,
         items: itemsVenta.map(i => ({ varianteId: parseInt(i.varianteId), cantidad: parseInt(i.cantidad) }))
       })
-      setSuccess(`✓ ${data.message}`)
+      setToast({ message: data.message, type: 'success' })
       setItemsVenta([itemVacio()]); setDescripcionVenta('')
       fetchData()
-    } catch (err: any) { setError(err.response?.data?.error || 'Error al registrar venta') }
-    finally { setSaving(false) }
+    } catch (err: any) {
+      setToast({ message: err.response?.data?.error || 'Error al registrar venta', type: 'error' })
+    } finally { setSaving(false) }
   }
 
   const handleDevolucion = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSaving(true); setError(''); setSuccess('')
+    setSaving(true)
     try {
       const { data } = await api.post('/api/movimientos/devolucion', {
         descripcion: motivoDevolucion,
         items: itemsDevolucion.map(i => ({ varianteId: parseInt(i.varianteId), cantidad: parseInt(i.cantidad) }))
       })
-      setSuccess(`✓ ${data.message}`)
+      setToast({ message: data.message, type: 'success' })
       setItemsDevolucion([itemVacio()]); setMotivoDevolucion('')
       fetchData()
-    } catch (err: any) { setError(err.response?.data?.error || 'Error al registrar devolución') }
-    finally { setSaving(false) }
+    } catch (err: any) {
+      setToast({ message: err.response?.data?.error || 'Error al registrar devolución', type: 'error' })
+    } finally { setSaving(false) }
   }
 
   const ventasFiltradas = ventas.filter(v => {
@@ -102,14 +156,27 @@ export default function VentasPage() {
 
   const s = {
     card: { background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderLeft: '4px solid var(--amber)', borderRadius: '14px', padding: '28px', boxShadow: '0 2px 12px var(--amber-bg)' } as React.CSSProperties,
-    cardSmall: { background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' } as React.CSSProperties,
+    cardSmall: { background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', padding: '24px' } as React.CSSProperties,
     input: { width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' } as React.CSSProperties,
     label: { fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.8px', display: 'block', marginBottom: '6px' },
     select: { width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' } as React.CSSProperties,
-    exportBtn: { background: 'var(--amber)', color: '#fff', border: 'none', borderRadius: '8px', padding: '7px 16px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px var(--amber-shadow)' } as React.CSSProperties,
+    exportBtn: { background: 'var(--amber)', color: '#fff', border: 'none', borderRadius: '8px', padding: '7px 16px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
   }
 
-  const ItemsGrid = ({ items, update, remove, add, color }: any) => (
+  const StockBadge = ({ varianteId }: { varianteId: string }) => {
+    const qty = getStockTienda(varianteId)
+    if (qty === null) return null
+    const color = qty === 0 ? 'var(--red)' : qty <= 5 ? 'var(--amber)' : 'var(--teal)'
+    const bg = qty === 0 ? 'var(--red-bg)' : qty <= 5 ? 'var(--amber-bg)' : 'var(--teal-bg)'
+    const border = qty === 0 ? 'var(--red-border)' : qty <= 5 ? 'var(--amber-border)' : 'var(--teal-border)'
+    return (
+      <span style={{ fontSize: '11px', fontWeight: '600', color, background: bg, border: `1px solid ${border}`, borderRadius: '6px', padding: '3px 8px', whiteSpace: 'nowrap' }}>
+        {qty === 0 ? 'Sin stock' : `${qty} en tienda`}
+      </span>
+    )
+  }
+
+  const ItemsGrid = ({ items, update, remove, add, color, showStock }: any) => (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
         <span style={s.label}>Productos</span>
@@ -117,23 +184,26 @@ export default function VentasPage() {
           + Agregar producto
         </button>
       </div>
-      <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 24px', gap: '8px' }}>
-          <span style={{ ...s.label, margin: 0 }}>Variante</span>
-          <span style={{ ...s.label, margin: 0 }}>Cant.</span>
-          <span />
-        </div>
+      <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {items.map((item: any, i: number) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 24px', gap: '8px', alignItems: 'center' }}>
-            <select value={item.varianteId} onChange={e => update(i, 'varianteId', e.target.value)} style={s.select} required>
-              <option value="">Seleccionar...</option>
-              {todasVariantes.map((v: any) => (
-                <option key={v.id} value={v.id}>{v.productoNombre} — T{v.talla} {v.color ? `· ${v.color}` : ''}</option>
-              ))}
-            </select>
-            <input type="number" min="1" value={item.cantidad} onChange={e => update(i, 'cantidad', e.target.value)} style={s.input} required />
-            {items.length > 1 && (
-              <button type="button" onClick={() => remove(i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: 0 }}>✕</button>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: i < items.length - 1 ? '10px' : '0', borderBottom: i < items.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 24px', gap: '8px', alignItems: 'center' }}>
+              <select value={item.varianteId} onChange={e => update(i, 'varianteId', e.target.value)} style={s.select} required>
+                <option value="">Seleccionar variante...</option>
+                {todasVariantes.map((v: any) => (
+                  <option key={v.id} value={v.id}>{v.productoNombre} — T{v.talla} {v.color ? `· ${v.color}` : ''}</option>
+                ))}
+              </select>
+              <input type="number" min="1" value={item.cantidad} onChange={e => update(i, 'cantidad', e.target.value)} placeholder="Cant." style={s.input} required />
+              {items.length > 1 && (
+                <button type="button" onClick={() => remove(i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: 0 }}>✕</button>
+              )}
+            </div>
+            {showStock && item.varianteId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '4px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Disponible en tienda:</span>
+                <StockBadge varianteId={item.varianteId} />
+              </div>
             )}
           </div>
         ))}
@@ -143,6 +213,10 @@ export default function VentasPage() {
 
   return (
     <div style={{ padding: '48px', maxWidth: '1100px' }}>
+
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       <div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '2px solid var(--amber-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <div style={{ width: '8px', height: '28px', background: 'var(--amber)', borderRadius: '4px' }} />
@@ -153,17 +227,27 @@ export default function VentasPage() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '4px', width: 'fit-content', marginBottom: '28px' }}>
-        {TABS.map(t => (
-          <button key={t} onClick={() => { setTab(t); setError(''); setSuccess('') }}
-            style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: tab === t ? '600' : '400', color: tab === t ? 'var(--amber)' : 'var(--text-secondary)', background: tab === t ? 'var(--amber-bg)' : 'transparent', border: tab === t ? '1px solid var(--amber-border)' : '1px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t}
-          </button>
-        ))}
+      {/* Tabs */}
+      <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', width: 'fit-content', marginBottom: '28px', background: 'var(--bg-input)' }}>
+        {TABS.map(({ id, label, Icon }) => {
+          const isActive = tab === id
+          return (
+            <button key={id} onClick={() => setTab(id)}
+              style={{
+                padding: '10px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                fontSize: '11px', fontWeight: isActive ? '600' : '400',
+                color: isActive ? 'var(--amber)' : 'var(--text-secondary)',
+                background: isActive ? 'var(--amber-bg)' : 'transparent',
+                borderRight: '1px solid var(--border)', border: 'none',
+                borderRight: '1px solid var(--border)',
+                cursor: 'pointer', fontFamily: 'inherit', minWidth: '90px',
+              }}>
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+              {label}
+            </button>
+          )
+        })}
       </div>
-
-      {success && <div style={{ background: 'var(--teal-bg)', border: '1px solid var(--teal-border)', color: 'var(--teal)', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', marginBottom: '20px' }}>{success}</div>}
-      {error && <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', color: 'var(--red)', borderRadius: '10px', padding: '12px 16px', fontSize: '13px', marginBottom: '20px' }}>{error}</div>}
 
       {tab === 'Registrar venta' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '16px', alignItems: 'start' }}>
@@ -171,12 +255,12 @@ export default function VentasPage() {
             <p style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', margin: '0 0 4px' }}>Registrar venta</p>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 24px' }}>El stock se descuenta de tienda automáticamente</p>
             <form onSubmit={handleVenta} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <ItemsGrid items={itemsVenta} update={updateItemVenta} remove={removeItemVenta} add={addItemVenta} color="var(--amber)" />
+              <ItemsGrid items={itemsVenta} update={updateItemVenta} remove={removeItemVenta} add={addItemVenta} color="var(--amber)" showStock={true} />
               <div>
                 <label style={s.label}>Observación</label>
                 <input value={descripcionVenta} onChange={e => setDescripcionVenta(e.target.value)} placeholder="Opcional" style={s.input} />
               </div>
-              <button type="submit" disabled={saving} style={{ width: '100%', background: 'var(--amber)', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1, boxShadow: '0 4px 12px var(--amber-shadow)' }}>
+              <button type="submit" disabled={saving} style={{ width: '100%', background: 'var(--amber)', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
                 {saving ? 'Registrando...' : 'Confirmar venta'}
               </button>
             </form>
@@ -203,7 +287,7 @@ export default function VentasPage() {
             <p style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', margin: '0 0 4px' }}>Registrar devolución</p>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 24px' }}>Los productos vuelven al stock de tienda</p>
             <form onSubmit={handleDevolucion} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <ItemsGrid items={itemsDevolucion} update={updateItemDev} remove={removeItemDev} add={addItemDev} color="var(--red)" />
+              <ItemsGrid items={itemsDevolucion} update={updateItemDev} remove={removeItemDev} add={addItemDev} color="var(--red)" showStock={false} />
               <div>
                 <label style={s.label}>Motivo</label>
                 <input value={motivoDevolucion} onChange={e => setMotivoDevolucion(e.target.value)} placeholder="Ej: Talla incorrecta, producto defectuoso..." style={s.input} />
@@ -251,9 +335,7 @@ export default function VentasPage() {
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
               {ventasFiltradas.length} de {ventas.length} ventas
             </span>
-            <button onClick={() => exportarVentas(ventasFiltradas)} style={s.exportBtn}>
-              ↓ Excel
-            </button>
+            <button onClick={() => exportarVentas(ventasFiltradas)} style={s.exportBtn}>↓ Excel</button>
           </div>
 
           <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
