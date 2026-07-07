@@ -209,7 +209,7 @@ export default function InventarioPage() {
           const isActive = tab === id
           return (
             <button key={id} onClick={() => { setTab(id); if (id !== 'Registrar ingreso') resetIngreso() }}
-              style={{ padding: '10px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: isActive ? '600' : '400', color: isActive ? 'var(--teal)' : 'var(--text-secondary)', background: isActive ? 'var(--teal-bg)' : 'transparent', borderRight: '1px solid var(--border)', border: 'none', borderRight: '1px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit', minWidth: '80px' }}>
+              style={{ padding: '10px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: isActive ? '600' : '400', color: isActive ? 'var(--teal)' : 'var(--text-secondary)', background: isActive ? 'var(--teal-bg)' : 'transparent', border: 'none', borderRight: '1px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit', minWidth: '80px' }}>
               <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
               {label}
             </button>
